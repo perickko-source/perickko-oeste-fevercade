@@ -809,9 +809,20 @@ const RUTAS_SONIDO = {
   explosion:'explosion.ogg',
   estornudo:'estornudo.ogg',
   ouch2:'ouch2.ogg',
-  muelle:'muelle.ogg'
+  muelle:'muelle.ogg',
+  duelo:'duelo.ogg',
+  muerte:'muerte.ogg'
 };
 const SONIDOS_ESPECIALES = { 'lajefa.png':'lajefa', 'perickko.png':'perickko', 'chocobo.png':'chocobo' };
+
+// ===== EL DUELO =====
+const INVITADOS = [ { img:'koala.png', nombre:'El Koala' } ];
+const DUELO_CFG = { golpes:15, espera:6, cooldown:180, puntosGolpe:15, premioPuntos:100, premioTiempo:20 };
+let dueloImg = new Image(); dueloImg.src = INVITADOS[0].img;
+let duelo = { activo:false, fase:'inactivo', t:0, hp:DUELO_CFG.golpes, pos:5, ruta:[], paso:0,
+              puertas:0, disparoT:0, textoT:0 };
+let dueloCd = 0;
+
 const SONIDOS_DISPARO_ESPECIALES = { 'pixelmaster.png':'disparoPixel' };
 const POOL = {};
 function reproducir(k, volumen=1, rate=1){
@@ -1038,6 +1049,147 @@ function soltarCabeza(){
   reproducir('muelle');
 }
 
+// ===== FUNCIONES DEL DUELO =====
+function barajar(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+function rutaDuelo(){
+  const ruta=[5];
+  const todas=[0,1,2,3,4,5];
+  while(ruta.length<DUELO_CFG.golpes){
+    let bolsa=barajar(todas.slice());
+    if(bolsa[0]===ruta[ruta.length-1]){
+      const i=bolsa.findIndex(p=>p!==bolsa[0]);
+      [bolsa[0],bolsa[i]]=[bolsa[i],bolsa[0]];
+    }
+    for(const p of bolsa){ if(ruta.length<DUELO_CFG.golpes) ruta.push(p); }
+  }
+  return ruta;
+}function posDuelo(){
+  const r=rectSpawn(duelo.pos), ref=rectSpawn(5);
+  const h=ref.h, w=h*0.62;
+  const esPuerta=duelo.pos===5;
+  const fy= esPuerta ? (r.y + r.h - h/2) : (r.y + r.h*0.06 + h/2);
+  return { x:r.x+r.w/2, y:fy, w, h, fx:r.x+r.w/2, fy:r.y+r.h*0.45 };
+}
+function empezarDuelo(){
+  duelo.activo=true; duelo.fase='tension'; duelo.t=0; duelo.hp=DUELO_CFG.golpes;
+  duelo.paso=0; duelo.puertas=0; duelo.disparoT=0; duelo.pos=5;
+  activos.length=0;
+  for(const st of coches){ if(st.c&&st.c.snd) st.c.snd.pause(); st.c=null;
+    if(esCaballoTipo(st.tipo)) imgDeCaballo(st.tipo).style.display='none'; }
+  for(const r of corredores) r.el.remove();
+  corredores.length=0;
+  reproducir('duelo');
+  dueloCd=DUELO_CFG.cooldown;
+}
+function dueloDispara(){
+  const {gx,gy}=datosPistola(), p=posDuelo();
+  efectos.push({tipo:'flashEnemigo', x:p.fx, y:p.fy, vida:0.15});
+  efectos.push({tipo:'balaEnemiga', x0:p.fx, y0:p.fy, x1:gx, y1:gy-30, vida:0.12, total:0.12});
+  reproducir('disparo2');
+  if(PENALIZACION>0){ score=Math.max(0,score-PENALIZACION);
+    efectos.push({tipo:'acertado', x:gx, y:gy-80, vida:0.8, texto:'-'+PENALIZACION+' ¡te han dado!', color:'#ff6a5a'});
+    dano=1; shake=1; }
+}
+
+function moverDuelo(){
+  duelo.paso++;
+  if(duelo.paso<duelo.ruta.length) duelo.pos=duelo.ruta[duelo.paso];
+  duelo.aparT=0;
+  duelo.disparoT=1.0+Math.random()*0.8;
+}
+
+function golpearDuelo(){
+  duelo.hp--; score+=DUELO_CFG.puntosGolpe;
+  reproducir('ouch');
+  const p=posDuelo();  
+efectos.push({tipo:'acertado', x:p.x, y:p.y-40, vida:0.8, texto:'+'+DUELO_CFG.puntosGolpe, color:'#8aff8a'});
+  if(duelo.hp<=0) matarDuelo(); else moverDuelo();
+}
+
+function matarDuelo(){
+  duelo.fase='muerto'; duelo.t=0;
+  score+=DUELO_CFG.premioPuntos; tiempo+=DUELO_CFG.premioTiempo;
+  reproducir('muerte');
+}
+
+
+function finDuelo(){ duelo.activo=false; duelo.fase='inactivo'; duelo.puertas=0; }
+function actualizarDuelo(dt){
+  duelo.t+=dt;
+  if(duelo.fase==='tension'){ if(duelo.t>=DUELO_CFG.espera){ duelo.fase='abriendo'; duelo.t=0; } }
+  else if(duelo.fase==='abriendo'){ duelo.puertas=Math.min(1,duelo.puertas+dt*1.4);
+    if(duelo.puertas>=1){ duelo.fase='enCurso'; duelo.ruta=rutaDuelo(); duelo.pos=duelo.ruta[0]; duelo.disparoT=1.2; duelo.aparT=0; } }
+  else if(duelo.fase==='enCurso'){ duelo.aparT=Math.min(1,(duelo.aparT||0)+dt*4); duelo.disparoT-=dt; if(duelo.disparoT<=0){ dueloDispara(); moverDuelo(); } }
+  else if(duelo.fase==='muerto'){ if(duelo.t>=4) finDuelo(); }
+}
+function dibujarDuelo(g){
+  if(!duelo.activo) return;
+  if(duelo.fase==='tension' || duelo.fase==='abriendo'){
+    dibujarCartelDuelo(g, duelo.fase==='tension' ? 1 : (1-duelo.puertas));
+  }
+  if(duelo.fase==='enCurso' && dueloImg.complete && dueloImg.naturalWidth){
+    const wr=rectSpawn(duelo.pos);
+    const e=easeOut(Math.min(1,duelo.aparT||0));
+    const dx=wr.x+wr.w/2;
+    if(duelo.pos===5){
+      const dh=wr.h, dw=dh*0.62;
+      const topFinal=wr.y+wr.h-dh, topInicio=wr.y+wr.h;
+      const top=topFinal+(1-e)*(topInicio-topFinal);
+      g.save(); g.translate(dx,top+dh/2);
+      g.drawImage(dueloImg,-dw/2,-dh/2,dw,dh); g.restore();
+    } else {
+      const dh=wr.h*1.7, dw=dh*0.62;
+      const topFinal=wr.y+wr.h*0.15, topInicio=wr.y+wr.h;
+      const top=topFinal+(1-e)*(topInicio-topFinal);
+      g.save(); g.beginPath(); g.rect(wr.x,wr.y,wr.w,wr.h); g.clip();
+      g.translate(dx,top+dh/2);
+      g.drawImage(dueloImg,-dw/2,-dh/2,dw,dh); g.restore();
+    }
+
+  }
+  if(duelo.fase==='muerto' && duelo.t > 1.0){
+    g.save(); g.textAlign='center';
+    g.fillStyle='rgba(0,0,0,0.55)'; g.fillRect(cj.width/2-180, cj.height/2-78, 360, 130);
+    g.fillStyle='#ffd97a'; g.font='bold 26px Georgia';
+    g.fillText(INVITADOS[0].nombre, cj.width/2, cj.height/2-34);
+    g.fillText('¡DUELO SUPERADO!', cj.width/2, cj.height/2);
+    g.fillStyle='#8aff8a'; g.font='bold 20px Georgia';
+    g.fillText('+'+DUELO_CFG.premioPuntos+' puntos · +'+DUELO_CFG.premioTiempo+' s', cj.width/2, cj.height/2+34);
+    g.restore();
+  }
+}
+
+function dibujarCartelDuelo(g, alpha){
+  const H=cj.height*0.8, W=H*0.72;
+  const x=cj.width/2-W/2, y=cj.height/2-H/2;
+  g.save(); g.globalAlpha=alpha;
+  g.fillStyle='#e8dcc0'; g.fillRect(x,y,W,H);
+  g.lineWidth=Math.max(3,W*0.02); g.strokeStyle='#6b4a2a'; g.strokeRect(x,y,W,H);
+  g.textAlign='center'; g.fillStyle='#3a2a1a';
+  g.font='bold '+(H*0.07)+'px Georgia';
+  g.fillText('SE BUSCA', cj.width/2, y+H*0.09);
+  const fw=W*0.7, fh=H*0.5, fx=cj.width/2-fw/2, fy=y+H*0.14;
+  g.fillStyle='#cbb894'; g.fillRect(fx,fy,fw,fh);
+  if(dueloImg.complete&&dueloImg.naturalWidth){
+    const iw=dueloImg.naturalWidth, ih=dueloImg.naturalHeight;
+    const sc=Math.max(fw/iw, fh/ih), dw=iw*sc, dh=ih*sc;
+    g.save(); g.beginPath(); g.rect(fx,fy,fw,fh); g.clip();
+    g.drawImage(dueloImg, fx+(fw-dw)/2, fy+(fh-dh)*0.25, dw, dh);
+    g.restore();
+  }
+  g.strokeStyle='#6b4a2a'; g.strokeRect(fx,fy,fw,fh);
+  g.fillStyle='#3a2a1a'; g.font='bold '+(H*0.055)+'px Georgia';
+  g.fillText(INVITADOS[0].nombre, cj.width/2, y+H*0.74);
+  g.fillStyle='#8a2a1a'; g.font='bold '+(H*0.05)+'px Georgia';
+  g.fillText('RECOMPENSA: '+DUELO_CFG.premioPuntos, cj.width/2, y+H*0.82);
+  g.restore();
+}
+
+function agaveRect(){
+  const {s,ox,oy}=escalaEsc();
+  return { x:ox+(L.agave-8)*s, y:oy+424*s, w:34*s, h:34*s };
+}
 
 function cabezaParams(){
   const {s}=escalaEsc();
@@ -1116,7 +1268,7 @@ function actualizarCoches(dt){
     if(!esCab && !sprite) continue;
     const esDelorean = !esCab;
     if(!st.c){
-      if(jugando){
+      if(jugando && !duelo.activo){
         st.timer -= dt;
         if(st.timer<=0){
           let vel = velBase;
@@ -1183,6 +1335,10 @@ function actualizar(dt){
   lunaWink = Math.max(0, lunaWink - dt);
   lunaCd = Math.max(0, lunaCd - dt);
   skullCd = Math.max(0, skullCd - dt);
+
+  dueloCd = Math.max(0, dueloCd - dt);
+  if(duelo.activo) actualizarDuelo(dt);
+
   if(dinamita){ const d=dinamita; const s=Math.max(cv.width/IW,cv.height/IH);
     if(!d.settled){ d.vy+=1400*s*dt; d.x+=d.vx*dt; d.y+=d.vy*dt; d.rot+=3*dt;
       if(d.y>=d.gy&&d.vy>0){ d.y=d.gy; d.settled=true; d.rot=0; } } }
@@ -1242,7 +1398,7 @@ function actualizar(dt){
     if(freeze<=0){ fuegos.rockets=[]; fuegos.parts=[]; crateOpen=false; crateStage=2; }
     return;
   }
-  if(jugando){
+  if(jugando && !duelo.activo){
     tiempo -= dt; if(tiempo<=0){ tiempo=0; jugando=false; }
     spawnTimer -= dt; if(spawnTimer<=0){ aparecerPersonaje(); spawnTimer = 0.5 + Math.random()*0.9; }
   }
@@ -1338,6 +1494,14 @@ function disparar(x,y){
   const s = Math.max(cv.width/IW, cv.height/IH);
   efectos.push({tipo:'bala', x0:bx, y0:by, x1:x, y1:y, vida:0.09, total:0.09});
 
+  if(duelo.activo){
+    if(duelo.fase==='enCurso'){
+      const p=posDuelo();
+      if(Math.abs(x-p.x)<p.w/2 && y>p.y-p.h && y<p.y+p.h){ golpearDuelo(); }
+    }
+    return;
+  }
+
   const lr = lunaRect();
   if(x>lr.x && x<lr.x+lr.w && y>lr.y && y<lr.y+lr.h){
     if(lunaCd<=0){
@@ -1399,6 +1563,12 @@ function disparar(x,y){
     return;
   }
   gatosSeguidos = 0;
+
+  const ag=agaveRect();
+  if(x>ag.x && x<ag.x+ag.w && y>ag.y && y<ag.y+ag.h){
+    if(dueloCd<=0) empezarDuelo();
+    return;
+  }
 
   for(let i=relojes.length-1;i>=0;i--){ const rj=relojes[i];
     if(Math.abs(x-rj.x)<18*s && Math.abs(y-rj.y)<18*s){
@@ -1988,6 +2158,9 @@ function bucle(t){
     fctx.font='20px Georgia'; fctx.fillStyle='#fff';
     fctx.fillText('Toca para jugar otra vez', fx.width/2, fx.height/2+85);
   }
+
+  dibujarDuelo(cj.getContext('2d'));
+
   requestAnimationFrame(bucle);
 }
 
