@@ -808,7 +808,8 @@ const RUTAS_SONIDO = {
   muuu:'muuu.ogg',
   explosion:'explosion.ogg',
   estornudo:'estornudo.ogg',
-  ouch2:'ouch2.ogg'
+  ouch2:'ouch2.ogg',
+  muelle:'muelle.ogg'
 };
 const SONIDOS_ESPECIALES = { 'lajefa.png':'lajefa', 'perickko.png':'perickko', 'chocobo.png':'chocobo' };
 const SONIDOS_DISPARO_ESPECIALES = { 'pixelmaster.png':'disparoPixel' };
@@ -1030,10 +1031,14 @@ function soltarMonedas(){
   }
   sonidoDerrameMonedas();
 }
+
+
 function soltarCabeza(){
   cabeza.active=true; cabeza.t=0; cabeza.soundDone=false;
-  sonidoMuelle();
+  reproducir('muelle');
 }
+
+
 function cabezaParams(){
   const {s}=escalaEsc();
   const cr=crateRect();
