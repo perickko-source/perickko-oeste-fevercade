@@ -619,6 +619,7 @@ let cartelBAR = { ang:0, vel:0, caidas:[] };
 let letrasBARVolando = [];
 let posters = [], postersCayendo = [];
 let crateStage = 0, crateOpen = false;
+let crateCd = 0;
 let relojes = [], monedas = [];
 let fuegos = { launch:0, rockets:[], parts:[] };
 let freeze = 0;
@@ -1042,7 +1043,7 @@ function soltarMonedas(){
     const a=Math.random()*Math.PI*2, d=30+Math.random()*120;
     let wx=cx+Math.cos(a)*d*s, wy=cy+Math.abs(Math.sin(a))*d*0.5*s+15*s;
     wx=Math.max(20,Math.min(cj.width-20,wx)); wy=Math.max(oy+560*s,Math.min(cj.height-20,wy));
-    monedas.push({x:wx,y:wy,vida:5+Math.random()*2,t:Math.random()*10});
+    monedas.push({x:wx,y:wy,vida:Infinity,t:Math.random()*10});
   }
   sonidoDerrameMonedas();
 }
@@ -1345,8 +1346,8 @@ function actualizar(dt){
   skullCd = Math.max(0, skullCd - dt);
 
   dueloCd = Math.max(0, dueloCd - dt);
+  if(crateCd>0){ crateCd-=dt; if(crateCd<=0 && crateStage>=4){ crateCd=0; crateStage=0; crateOpen=false; } }
   if(duelo.activo) actualizarDuelo(dt);
-
   if(dinamita){ const d=dinamita; const s=Math.max(cv.width/IW,cv.height/IH);
     if(!d.settled){ d.vy+=1400*s*dt; d.x+=d.vx*dt; d.y+=d.vy*dt; d.rot+=3*dt;
       if(d.y>=d.gy&&d.vy>0){ d.y=d.gy; d.settled=true; d.rot=0; } } }
@@ -1369,7 +1370,7 @@ function actualizar(dt){
         });
       }
     }
-    if(T>=2.6){ cabeza.active=false; crateOpen=false; crateStage=4; }
+    if(T>=2.6){ cabeza.active=false; crateOpen=false; crateStage=4; crateCd=150; }
   }
   for(let i=fuegoParts.length-1;i>=0;i--){ const f=fuegoParts[i];
     f.vy+=300*dt; f.x+=f.vx*dt; f.y+=f.vy*dt; f.vida-=dt;
@@ -1583,7 +1584,7 @@ function disparar(x,y){
       tiempo+=5; sonidoTick();
       efectos.push({tipo:'texto', x:rj.x, y:rj.y-14, vida:0.8, texto:'⏱ +5s', color:'#8affff'});
       relojes.splice(i,1);
-      if(relojes.length===0){ crateOpen=false; crateStage=1; }
+      if(crateOpen && crateStage===0 && relojes.length===0){ crateOpen=false; crateStage=1; }
       return; } }
 
   for(let i=relojesCactus.length-1;i>=0;i--){ const rj=relojesCactus[i];
@@ -2175,7 +2176,7 @@ function bucle(t){
 function empezar(){
   score=0; tiempo=60; balas=6; racha=0;
   balasInfinitas=false; gatosSeguidos=0;
-  crateStage=0; crateOpen=false; relojes=[]; monedas=[];
+  crateStage=0; crateOpen=false; crateCd=0; relojes=[]; monedas=[];
   fuegos={launch:0,rockets:[],parts:[]}; freeze=0;
   lunaWink=0; lunaCd=0; estrellaFugaz=null;
   cabeza={active:false,t:0,soundDone:false}; fuegoParts=[];
