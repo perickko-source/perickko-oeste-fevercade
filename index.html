@@ -570,6 +570,11 @@ let gallinaRatio = 232/300;
 let corredores = [];
 let runnerRatio = 1.5;
 { const img=new Image(); img.onload=()=>{ if(img.naturalWidth>0) runnerRatio=img.naturalWidth/img.naturalHeight; }; img.src='docymarty.webp'; }
+let ovejas = [];
+let cacas = [];
+let ovejaRatio = 0.62;
+{ const img=new Image(); img.onload=()=>{ if(img.naturalWidth>0) ovejaRatio=img.naturalWidth/img.naturalHeight; }; img.src='oveja-negra.webp'; }
+let ovejaTimer = 10;
 
 
 function trimAlpha(c){
@@ -812,15 +817,16 @@ const RUTAS_SONIDO = {
   ouch2:'ouch2.ogg',
   muelle:'muelle.ogg',
   duelo:'duelo.ogg',
-  muerte:'muerte.ogg'
+  muerte:'muerte.ogg',
+  ovejita:'ovejita.ogg'
 };
 const SONIDOS_ESPECIALES = { 'lajefa.png':'lajefa', 'perickko.png':'perickko', 'chocobo.png':'chocobo' };
 
 // ===== EL DUELO =====
 const INVITADOS = [
-  { img:'koala.png',  nombre:'El Koala', puntos:100, tiempo:20, golpes:15 },
-  { img:'pepino.png', nombre:'Pepino',   puntos:200, tiempo:40, golpes:15 },
-  { img:'nandors.png',nombre:'Nandors',  puntos:300, tiempo:50, golpes:20, caballo:'nandors-a-caballo.webp' }
+  { img:'koala.png',  nombre:'El Koala', puntos:100, tiempo:10, golpes:15 },
+  { img:'pepino.png', nombre:'Pepino',   puntos:200, tiempo:10, golpes:15 },
+  { img:'nandors.png',nombre:'Nandors',  puntos:300, tiempo:10, golpes:20, caballo:'nandors-a-caballo.webp' }
 ];
 const DUELO_CFG = { golpes:15, espera:6, cooldown:120, puntosGolpe:15 };
 for(const inv of INVITADOS){ inv.el=new Image(); inv.el.src=inv.img;
@@ -842,6 +848,7 @@ function pintarCaballoDuelo(){
 
 let dueloImg = INVITADOS[0].el;
 let dueloNum = 0;
+let relojesFlojos = false;
 let duelo = { activo:false, fase:'inactivo', t:0, hp:DUELO_CFG.golpes, pos:5, ruta:[], paso:0,
               puertas:0, disparoT:0, textoT:0 };
 let dueloCd = 0;
@@ -1039,6 +1046,16 @@ function spawnRunner(st, c){
   corredores.push({ el, dir:st.dir, x:carX - st.dir*300*s, vel:c.vel*s, cool:0 });
   reproducir('docymarty');
 }
+function spawnOveja(){
+  const dir = Math.random()<0.5?1:-1;
+  const el=document.createElement('img');
+  el.src='oveja-negra.webp'; el.alt=''; el.className='runner';
+  document.body.appendChild(el);
+  ovejas.push({ x: dir>0? -80 : cj.width+80, dir, vel:(110+Math.random()*60), t:Math.random()*10, cacaT:0.5, el });
+
+  reproducir('ovejita');
+}
+
 function soltarRelojes(){
   const {s,ox,oy}=escalaEsc();
   const cx=ox+(L.crateX+24)*s, cy=oy+585*s;
@@ -1135,7 +1152,9 @@ function posDuelo(){
   return { x:r.x+r.w/2, y:fy, w, h, fx:r.x+r.w/2, fy:r.y+r.h*0.45 };
 }
 function empezarDuelo(){
-  duelo.inv = dueloNum % INVITADOS.length; dueloNum++;
+  duelo.inv = dueloNum % INVITADOS.length;
+  duelo.daTiempo = dueloNum < INVITADOS.length;
+  dueloNum++;
   dueloImg = INVITADOS[duelo.inv].el;
   duelo.activo=true; duelo.fase='tension'; duelo.t=0; duelo.hp=INVITADOS[duelo.inv].golpes || DUELO_CFG.golpes;
   duelo.cab=null;
@@ -1145,6 +1164,9 @@ function empezarDuelo(){
     if(esCaballoTipo(st.tipo)) imgDeCaballo(st.tipo).style.display='none'; }
   for(const r of corredores) r.el.remove();
   corredores.length=0;
+  for(const ov of ovejas) ov.el.remove();
+  ovejas.length=0;
+
   reproducir('duelo');
   dueloCd=DUELO_CFG.cooldown;
 }
@@ -1177,14 +1199,15 @@ function golpearDuelo(){
 efectos.push({tipo:'acertado', x:p.x, y:p.y-40, vida:0.8, texto:'+'+DUELO_CFG.puntosGolpe, color:'#8aff8a'});
   if(duelo.hp<=0) matarDuelo(); else moverDuelo();
 }
-
+function valorReloj(){ return relojesFlojos ? 2 : 5; }
 function matarDuelo(){
   if(duelo.cab&&duelo.cab.snd) duelo.cab.snd.pause();
   duelo.cab=null;
   duelo.fase='muerto'; duelo.t=0;
   duelo.fase='muerto'; duelo.t=0;
   const inv=INVITADOS[duelo.inv];
-  score+=inv.puntos; tiempo+=inv.tiempo;
+  score+=inv.puntos; if(duelo.daTiempo) tiempo+=inv.tiempo;
+  if(duelo.daTiempo && duelo.inv===INVITADOS.length-1) relojesFlojos=true;
   reproducir('muerte');
 }
 
@@ -1256,7 +1279,7 @@ function dibujarDuelo(g){
     g.fillText(inv.nombre, cj.width/2, cj.height/2-34);
     g.fillText('¡DUELO SUPERADO!', cj.width/2, cj.height/2);
     g.fillStyle='#8aff8a'; g.font='bold 20px Georgia';
-    g.fillText('+'+inv.puntos+' puntos · +'+inv.tiempo+' s', cj.width/2, cj.height/2+34);
+    g.fillText(duelo.daTiempo ? '+'+inv.puntos+' puntos · +'+inv.tiempo+' s' : '+'+inv.puntos+' puntos', cj.width/2, cj.height/2+34);
     g.restore();
   }
 }
@@ -1503,6 +1526,14 @@ function actualizar(dt){
     tiempo -= dt; if(tiempo<=0){ tiempo=0; jugando=false; }
     spawnTimer -= dt; if(spawnTimer<=0){ aparecerPersonaje(); spawnTimer = 0.5 + Math.random()*0.9; }
   }
+  ovejaTimer -= dt;
+  if(ovejaTimer<=0){
+    ovejaTimer = 12 + Math.random()*10;
+    const caminoLibre = coches.every(st=>!st.c) && gallinas.length===0 && corredores.length===0 && ovejas.length===0;
+    if(jugando && !duelo.activo && caminoLibre) spawnOveja();
+  }
+
+
   const ref = rectSpawn(5);
   for(let i=activos.length-1; i>=0; i--){
     const a = activos[i];
@@ -1565,6 +1596,19 @@ function actualizar(dt){
       gll.el.style.left = (gll.x - w/2)+'px'; gll.el.style.top = (gy - h + bob)+'px';
       gll.el.style.transform = flip===-1 ? 'scaleX(-1)' : 'none';
       if(gll.x<-80 || gll.x>cj.width+80){ gll.el.remove(); gallinas.splice(i,1); } } }
+  { const {s,oy}=escalaEsc(); const gy=oy+668*s;
+    for(let i=ovejas.length-1;i>=0;i--){ const ov=ovejas[i];
+      ov.x += ov.dir*ov.vel*dt;
+      ov.cacaT-=dt;
+      if(ov.cacaT<=0){ ov.cacaT=0.35+Math.random()*0.3;
+        cacas.push({ x:ov.x - ov.dir*10*s + (Math.random()-0.5)*6*s, y:gy-2*s, r:(2.5+Math.random()*1.5)*s, vida:5 });
+      }
+      const h=64*s, w=h*ovejaRatio;
+      ov.el.style.width = w+'px'; ov.el.style.height = h+'px';
+      ov.el.style.left = (ov.x - w/2)+'px'; ov.el.style.top = (gy - h)+'px';
+      ov.el.style.transform = ov.dir>0 ? 'scaleX(-1)' : 'none';
+      if(ov.x<-100 || ov.x>cj.width+100){ ov.el.remove(); ovejas.splice(i,1); } } }
+  for(let i=cacas.length-1;i>=0;i--){ cacas[i].vida-=dt; if(cacas[i].vida<=0) cacas.splice(i,1); }
 
   const {s} = escalaEsc();
   for(let i=fugas.length-1;i>=0;i--){ const f=fugas[i];
@@ -1678,16 +1722,16 @@ function disparar(x,y){
 
   for(let i=relojes.length-1;i>=0;i--){ const rj=relojes[i];
     if(Math.abs(x-rj.x)<18*s && Math.abs(y-rj.y)<18*s){
-      tiempo+=5; sonidoTick();
-      efectos.push({tipo:'texto', x:rj.x, y:rj.y-14, vida:0.8, texto:'⏱ +5s', color:'#8affff'});
+      tiempo+=valorReloj(); sonidoTick();
+      efectos.push({tipo:'texto', x:rj.x, y:rj.y-14, vida:0.8, texto:'⏱ +'+valorReloj()+'s', color:'#8affff'});
       relojes.splice(i,1);
       if(crateOpen && crateStage===0 && relojes.length===0){ crateOpen=false; crateStage=1; }
       return; } }
 
   for(let i=relojesCactus.length-1;i>=0;i--){ const rj=relojesCactus[i];
     if(Math.abs(x-rj.x)<18*s && Math.abs(y-rj.y)<18*s){
-      tiempo+=5; sonidoTick();
-      efectos.push({tipo:'texto', x:rj.x, y:rj.y-14, vida:0.8, texto:'⏱ +5s', color:'#8affff'});
+      tiempo+=valorReloj(); sonidoTick();
+      efectos.push({tipo:'texto', x:rj.x, y:rj.y-14, vida:0.8, texto:'⏱ +'+valorReloj()+'s', color:'#8affff'});
       relojesCactus.splice(i,1);
       return; } }
 
@@ -1751,6 +1795,22 @@ function disparar(x,y){
         }
       }
     } }
+
+  { const {s,oy}=escalaEsc();
+    for(let i=ovejas.length-1;i>=0;i--){ const ov=ovejas[i];
+      const H=64*s, W=H*ovejaRatio;
+      const top=oy+668*s - H;
+      if(x>ov.x-W/2 && x<ov.x+W/2 && y>top && y<top+H){
+        for(let k=0;k<2;k++){
+          relojes.push({ x:ov.x+(Math.random()-0.5)*30*s, y:top+H*0.5,
+            vx:(Math.random()-0.5)*140*s, vy:-(150+Math.random()*100)*s,
+            gy:oy+600*s+Math.random()*40*s, rot:0, vrot:(Math.random()-0.5)*12, settled:false, t:0 });
+        }
+        ov.el.remove(); ovejas.splice(i,1);
+        return;
+      }
+    } }
+
   const br = barrilRect();
   if(x>br.x && x<br.x+br.w && y>br.y && y<br.y+br.h){ golpeMadera(); soltarGallina(); return; }
 
@@ -2034,6 +2094,18 @@ function dibujarPinchos(){
   octx.globalAlpha=1;
 }
 
+function dibujarCacas(){
+  for(const c of cacas){
+    const a=Math.max(0,Math.min(1,c.vida));
+    octx.globalAlpha=a;
+    octx.fillStyle='#241f1a';
+    octx.beginPath(); octx.ellipse(c.x,c.y,c.r,c.r*0.8,0,0,Math.PI*2); octx.fill();
+    octx.fillStyle='rgba(255,255,255,0.12)';
+    octx.beginPath(); octx.arc(c.x-c.r*0.3,c.y-c.r*0.3,c.r*0.35,0,Math.PI*2); octx.fill();
+    octx.globalAlpha=1;
+  }
+}
+
 function dibujarItems(){
   const s=Math.max(cv.width/IW,cv.height/IH);
    for(const rj of relojes.concat(relojesCactus)){
@@ -2223,6 +2295,7 @@ function bucle(t){
   dibujarCartelBAR(now);
   dibujarPosters();
   dibujarAgua();
+  dibujarCacas();
   dibujarPersonajes();
   dibujarCoches();
   dibujarCabeza();
@@ -2244,9 +2317,11 @@ function bucle(t){
     if(esTouch) btnRecarga.style.display='none';
     caballoImgEl.style.display='none'; caballo2ImgEl.style.display='none';
     for(const gll of gallinas){ if(gll.el) gll.el.remove(); }
+    for(const ov of ovejas){ if(ov.el) ov.el.remove(); }
   for(const r of corredores){ if(r.el) r.el.remove(); }
   corredores=[];
-    gallinas=[];
+    gallinas=[]; ovejas=[]; cacas=[];
+
     fctx.fillStyle='rgba(0,0,0,0.6)'; fctx.fillRect(0,0,fx.width,fx.height);
     fctx.fillStyle='#ffd97a'; fctx.textAlign='center';
     fctx.font='bold 42px Georgia'; fctx.fillText('🤠 ¡SE ACABÓ EL TIEMPO!', fx.width/2, fx.height/2-95);
@@ -2271,6 +2346,7 @@ function bucle(t){
 }
 
 function empezar(){
+  dueloNum=0; relojesFlojos=false;
   score=0; tiempo=60; balas=6; racha=0;
   balasInfinitas=false; gatosSeguidos=0;
   crateStage=0; crateOpen=false; crateCd=0; relojes=[]; monedas=[];
@@ -2281,7 +2357,8 @@ function empezar(){
   cactusStage=[0,0]; cactusShake=[0,0]; cactusCd=[0,0]; pinchos=[]; relojesCactus=[];
   activos=[]; efectos=[]; agujeros=[]; fugas=[]; gotas=[]; charcos=[];
   for(const gll of gallinas){ if(gll.el) gll.el.remove(); }
-  gallinas=[]; letrasVolando=[]; letrasBARVolando=[]; postersCayendo=[];
+  for(const ov of ovejas){ if(ov.el) ov.el.remove(); }
+  gallinas=[]; ovejas=[]; cacas=[]; letrasVolando=[]; letrasBARVolando=[]; postersCayendo=[];
   cartel={ang:0,vel:0,caidas:[]}; cartelBAR={ang:0,vel:0,caidas:[]};
   posters=[ {off:-288, rot:(Math.random()-.5)*.06, state:'hanging', friend:-1},
             {off: 120, rot:(Math.random()-.5)*.06, state:'hanging', friend:-1} ];
