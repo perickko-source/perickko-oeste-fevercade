@@ -826,7 +826,7 @@ const SONIDOS_ESPECIALES = { 'lajefa.png':'lajefa', 'perickko.png':'perickko', '
 const INVITADOS = [
   { img:'koala.png',  nombre:'El Koala', puntos:100, tiempo:10, golpes:15 },
   { img:'pepino.png', nombre:'Pepino',   puntos:200, tiempo:10, golpes:15 },
-  { img:'nandors.png',nombre:'Nandors',  puntos:300, tiempo:10, golpes:20, caballo:'nandors-a-caballo.webp' }
+  { img:'nandors.png',nombre:'Nandors',  puntos:300, tiempo:10, golpes:20, caballo:'nandors-a-caballo.webp', rafaga:4 }
 ];
 const DUELO_CFG = { golpes:15, espera:6, cooldown:120, puntosGolpe:15 };
 for(const inv of INVITADOS){ inv.el=new Image(); inv.el.src=inv.img;
@@ -1159,6 +1159,8 @@ function empezarDuelo(){
   duelo.activo=true; duelo.fase='tension'; duelo.t=0; duelo.hp=INVITADOS[duelo.inv].golpes || DUELO_CFG.golpes;
   duelo.cab=null;
   duelo.paso=0; duelo.puertas=0; duelo.disparoT=0; duelo.pos=5;
+  duelo.paso=0; duelo.puertas=0; duelo.disparoT=0; duelo.pos=5;
+  duelo.ndrShots=0; duelo.ndrT=0; duelo.ndrApar=-1;
   activos.length=0;
   for(const st of coches){ if(st.c&&st.c.snd) st.c.snd.pause(); st.c=null;
     if(esCaballoTipo(st.tipo)) imgDeCaballo(st.tipo).style.display='none'; }
@@ -1237,7 +1239,16 @@ function actualizarDuelo(dt){
     } else {
 
 
-      duelo.disparoT-=dt; if(duelo.disparoT<=0){ dueloDispara(); moverDuelo(); }
+      const inv=INVITADOS[duelo.inv];
+      if(inv.rafaga){
+        if(duelo.ndrShots<=0){ duelo.ndrShots=inv.rafaga; duelo.ndrT=0.4; }
+        duelo.ndrT-=dt;
+        if(duelo.ndrT<=0 && duelo.ndrShots>0){ duelo.ndrShots--; duelo.ndrT=0.35; dueloDispara(); }
+        if(duelo.ndrShots<=0){ moverDuelo(); }
+      } else {
+        duelo.disparoT-=dt; if(duelo.disparoT<=0){ dueloDispara(); moverDuelo(); }
+      }
+
     }
   }
 
