@@ -1130,9 +1130,9 @@ function iniciarCaballoDuelo(){
   const x0= dir>0? -260*s : cj.width+260*s;
   const x1= dir>0? cj.width+300 : -300;
   const dur=Math.abs(x1-x0)/vel;
-  const disparos=3+Math.floor(Math.random()*10);
+  const disparos=8+Math.floor(Math.random()*9);
   duelo.cab={ dir, x:x0, vel, snd:reproducir('trote'),
-    shotsLeft:disparos, tShot:dur*0.15, int:dur/disparos };
+    shotsLeft:disparos, tShot:dur*0.08, int:dur/disparos };
 }
 
 function rectCaballoDuelo(){
