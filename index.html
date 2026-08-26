@@ -1201,7 +1201,7 @@ function golpearDuelo(){
 efectos.push({tipo:'acertado', x:p.x, y:p.y-40, vida:0.8, texto:'+'+DUELO_CFG.puntosGolpe, color:'#8aff8a'});
   if(duelo.hp<=0) matarDuelo(); else moverDuelo();
 }
-function valorReloj(){ return relojesFlojos ? 2 : 5; }
+function valorReloj(){ return relojesFlojos ? 2 : 4; }
 function matarDuelo(){
   if(duelo.cab&&duelo.cab.snd) duelo.cab.snd.pause();
   duelo.cab=null;
@@ -1661,6 +1661,19 @@ function disparar(x,y){
       }
     }
     return;
+  }
+
+  { const R=24*escalaEsc().s;
+    for(let i=letrasVolando.length-1;i>=0;i--){ const l=letrasVolando[i];
+      if(Math.abs(x-l.x)<R && Math.abs(y-l.y)<R){
+        letrasVolando.splice(i,1); tiempo+=5; sonidoTick();
+        efectos.push({tipo:'texto', x:l.x, y:l.y-14, vida:0.8, texto:'⏱ +5s', color:'#8affff'});
+        return; } }
+    for(let i=letrasBARVolando.length-1;i>=0;i--){ const l=letrasBARVolando[i];
+      if(Math.abs(x-l.x)<R && Math.abs(y-l.y)<R){
+        letrasBARVolando.splice(i,1); tiempo+=5; sonidoTick();
+        efectos.push({tipo:'texto', x:l.x, y:l.y-14, vida:0.8, texto:'⏱ +5s', color:'#8affff'});
+        return; } }
   }
 
   const lr = lunaRect();
