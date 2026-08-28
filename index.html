@@ -1875,7 +1875,17 @@ function disparar(x,y){
         return;
       }
     } }
-
+  { const {s}=escalaEsc();
+    for(let i=cacas.length-1;i>=0;i--){ const c=cacas[i];
+      const R=Math.max(10*s,c.r+8*s);
+      if(Math.abs(x-c.x)<R && Math.abs(y-c.y)<R){
+        tiempo+=1; sonidoTick();
+        efectos.push({tipo:'texto', x:c.x, y:c.y-12, vida:0.8, texto:'💩 ⏱ +1s', color:'#c8a06a'});
+        cacas.splice(i,1);
+        return;
+      }
+    }
+  }
   const br = barrilRect();
   if(x>br.x && x<br.x+br.w && y>br.y && y<br.y+br.h){ golpeMadera(); soltarGallina(); return; }
 
