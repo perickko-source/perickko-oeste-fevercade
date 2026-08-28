@@ -14,10 +14,10 @@
   #caballoImg, #caballo2Img { position:fixed; left:0; top:0; z-index:3; display:none; pointer-events:none; }
   .runner { position:fixed; left:0; top:0; z-index:50; display:block; pointer-events:none; }
   .gallina { position:fixed; left:0; top:0; z-index:3; display:block; pointer-events:none; }
-  #fx { position:fixed; inset:0; width:100%; height:100%; display:block; z-index:4;
+  #fx { position:fixed; inset:0; width:100%; height:100%; display:block; z-index:55;
     pointer-events:none; }
   #aviso { position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
-    background:rgba(0,0,0,.7); z-index:10; }
+    background:rgba(0,0,0,.7); z-index:56; }
   #caja { color:#fff; font-family:Georgia,serif; font-size:20px; text-align:center;
     background:rgba(30,15,5,.92); padding:25px 40px; border:3px solid #c8892f; border-radius:12px;
     max-width:90vw; max-height:92vh; overflow-y:auto; }
@@ -38,13 +38,13 @@
     .chico { font-size:11px; margin-top:6px; }
   }
   #pantalla { position:fixed; inset:0; display:none; align-items:center; justify-content:center;
-    background:#000; z-index:15; }
+    background:#000; z-index:59; }
   #btnPantalla { padding:18px 42px; font-size:24px; font-family:Georgia,serif; background:#c8892f;
     border:none; border-radius:10px; color:#2b1a0a; cursor:pointer; touch-action:manipulation; }
   .parpadea { animation: parp 1.1s ease-in-out infinite; }
   @keyframes parp { 0%,100%{opacity:1} 50%{opacity:0.35} }
   #gira { position:fixed; inset:0; background:#1a0f05; color:#fff; display:none;
-    flex-direction:column; align-items:center; justify-content:center; z-index:20;
+    flex-direction:column; align-items:center; justify-content:center; z-index:60;
     font-family:Georgia,serif; text-align:center; font-size:24px; }
   #gira .fono { font-size:90px; animation: rotar 1.8s ease-in-out infinite; }
   @keyframes rotar { 0%,25% {transform:rotate(0deg);} 70%,100% {transform:rotate(90deg);} }
@@ -53,11 +53,11 @@
     display:none; z-index:5; cursor:pointer; font-family:Georgia,serif;
     align-items:center; justify-content:center; touch-action:manipulation; }
   #btnRecarga:active { transform:scale(0.9); }
-  #fallo { display:none; position:fixed; left:8px; bottom:8px; z-index:60; max-width:92vw;
+  #fallo { display:none; position:fixed; left:8px; bottom:8px; z-index:70; max-width:92vw;
     background:#400808; color:#ffcccc; font:12px monospace; padding:8px 10px;
     border-radius:6px; white-space:pre-wrap; }
   #record { position:fixed; inset:0; display:none; align-items:center; justify-content:center;
-    background:rgba(0,0,0,.6); z-index:12; }
+    background:rgba(0,0,0,.6); z-index:57; }
   .cajaRec { background:rgba(30,15,5,.95); border:3px solid #c8892f; border-radius:12px;
     padding:22px 30px; text-align:center; color:#fff; font-family:Georgia,serif; }
   .titRec { font-size:26px; color:#ffd97a; margin-bottom:14px; }
@@ -68,7 +68,7 @@
     background:#c8892f; border:none; border-radius:6px; color:#2b1a0a; cursor:pointer;
     touch-action:manipulation; }
 #topModal { position:fixed; inset:0; display:none; align-items:center; justify-content:center;
-  background:rgba(0,0,0,.7); z-index:13; }
+  background:rgba(0,0,0,.7); z-index:58; }
 .cajaTop { background:rgba(30,15,5,.96); border:3px solid #c8892f; border-radius:12px;
   padding:16px 22px; text-align:center; color:#fff; font-family:Georgia,serif;
   display:flex; flex-direction:column; box-sizing:border-box;
@@ -818,7 +818,9 @@ const RUTAS_SONIDO = {
   muelle:'muelle.ogg',
   duelo:'duelo.ogg',
   muerte:'muerte.ogg',
-  ovejita:'ovejita.ogg'
+  ovejita:'ovejita.ogg',
+  yepa:'yepa.ogg',
+  diligencia:'diligencia.ogg'
 };
 const SONIDOS_ESPECIALES = { 'lajefa.png':'lajefa', 'perickko.png':'perickko', 'chocobo.png':'chocobo' };
 
@@ -826,7 +828,8 @@ const SONIDOS_ESPECIALES = { 'lajefa.png':'lajefa', 'perickko.png':'perickko', '
 const INVITADOS = [
   { img:'koala.png',  nombre:'El Koala', puntos:100, tiempo:10, golpes:15 },
   { img:'pepino.png', nombre:'Pepino',   puntos:200, tiempo:10, golpes:15 },
-  { img:'nandors.png',nombre:'Nandors',  puntos:300, tiempo:10, golpes:20, caballo:'nandors-a-caballo.webp', rafaga:4 }
+  { img:'nandors.png',nombre:'Nandors',  puntos:300, tiempo:10, golpes:20, caballo:'nandors-a-caballo.webp', rafaga:4 },
+  { img:'javimasme.png',nombre:'Javi Masme', puntos:400, tiempo:10, golpes:20, caballo:'masme-en-diligencia.webp', rafaga:2, disparosCab:4, cabH:300, cabGolpes:5 }
 ];
 const DUELO_CFG = { golpes:15, espera:6, cooldown:120, puntosGolpe:15 };
 for(const inv of INVITADOS){ inv.el=new Image(); inv.el.src=inv.img;
@@ -1130,16 +1133,19 @@ function iniciarCaballoDuelo(){
   const x0= dir>0? -260*s : cj.width+260*s;
   const x1= dir>0? cj.width+300 : -300;
   const dur=Math.abs(x1-x0)/vel;
-  const disparos=8+Math.floor(Math.random()*9);
-  duelo.cab={ dir, x:x0, vel, snd:reproducir('trote'),
-    shotsLeft:disparos, tShot:dur*0.08, int:dur/disparos };
+  const inv=INVITADOS[duelo.inv];
+  if(inv.caballo) nandorsCabEl.src=inv.caballo;
+  const disparos= inv.disparosCab ? inv.disparosCab : 8+Math.floor(Math.random()*9);
+  const esDili = inv.caballo && inv.caballo.includes('diligencia');
+  duelo.cab={ dir, x:x0, vel, snd:reproducir(esDili?'diligencia':'trote'),
+    shotsLeft:disparos, tShot:dur*0.08, int:dur/disparos, hp:inv.cabGolpes||1 };
 }
 
 function rectCaballoDuelo(){
   const {s,ox,oy}=escalaEsc();
   const inv=INVITADOS[duelo.inv];
   const ratio=(inv.cabEl&&inv.cabEl.naturalWidth>0)? inv.cabEl.naturalWidth/inv.cabEl.naturalHeight : 1.1;
-  const H=190*s, W=H*ratio, gy=oy+700*s;
+  const H=(inv.cabH||190)*s, W=H*ratio, gy=oy+700*s;
   const x=duelo.cab?duelo.cab.x:cj.width/2;
   return { x:x-W/2, y:gy-H, w:W, h:H };
 }
@@ -1188,10 +1194,33 @@ function dueloDispara(){
 function moverDuelo(){
   if(duelo.cab && duelo.cab.snd) duelo.cab.snd.pause();
   duelo.paso++;
-  if(duelo.paso<duelo.ruta.length) duelo.pos=duelo.ruta[duelo.paso];
+  if(duelo.paso>=duelo.ruta.length){
+    const inv=INVITADOS[duelo.inv];
+    const todas=inv.caballo?[0,1,2,3,4,5,6]:[0,1,2,3,4,5];
+    const opts=todas.filter(p=>p!==duelo.pos);
+    duelo.ruta.push(opts[Math.floor(Math.random()*opts.length)]);
+  }
+  duelo.pos=duelo.ruta[duelo.paso];
   duelo.aparT=0;
   duelo.disparoT=1.0+Math.random()*0.8;
   if(duelo.pos===6) iniciarCaballoDuelo(); else duelo.cab=null;
+}
+
+function golpearCab(x,y,r){
+  const inv=INVITADOS[duelo.inv];
+  if(!inv.cabGolpes){ golpearDuelo(); return; }
+  const d=duelo.cab.dir;
+  const dx0 = d>0 ? r.x+r.w*0.15 : r.x+r.w*0.35;
+  const dx1 = d>0 ? r.x+r.w*0.50 : r.x+r.w*0.85;
+  const dy1 = r.y+r.h*0.60;
+  const enMuneco = x>dx0 && x<dx1 && y>r.y && y<dy1;
+  if(!enMuneco){ reproducir('ouch2'); efectos.push({tipo:'texto',x,y:y-14,vida:0.5,texto:'¡clang!',color:'#bbb'}); return; }
+  const cabeza = y < r.y + r.h*0.28;
+  duelo.cab.hp--;
+  const pts = DUELO_CFG.puntosGolpe + (cabeza?10:0);
+  score+=pts; reproducir('ouch');
+  efectos.push({tipo:'acertado',x,y:y-20,vida:0.8,texto:(cabeza?'¡HEADSHOT! +':'+')+pts, color: cabeza?'#ffe066':'#8aff8a'});
+  if(duelo.cab.hp<=0) golpearDuelo();
 }
 
 function golpearDuelo(){
@@ -1222,6 +1251,12 @@ function finDuelo(){
 
 function actualizarDuelo(dt){
   duelo.t+=dt;
+  if(duelo.activo && INVITADOS[duelo.inv].nombre==='Javi Masme'){
+    if(duelo.yepaT===undefined) duelo.yepaT=1.5+Math.random()*3;
+    duelo.yepaT-=dt;
+    if(duelo.yepaT<=0){ reproducir('yepa'); duelo.yepaT=2+Math.random()*4; }
+  }
+
   if(duelo.fase==='tension'){ if(duelo.t>=DUELO_CFG.espera){ duelo.fase='abriendo'; duelo.t=0; } }
   else if(duelo.fase==='abriendo'){ duelo.puertas=Math.min(1,duelo.puertas+dt*1.4);
     if(duelo.puertas>=1){ duelo.fase='enCurso'; duelo.ruta=rutaDuelo(); duelo.pos=duelo.ruta[0]; duelo.disparoT=1.2; duelo.aparT=0; } }
@@ -1654,7 +1689,7 @@ function disparar(x,y){
     if(duelo.fase==='enCurso'){
       if(duelo.pos===6 && duelo.cab){
         const r=rectCaballoDuelo();
-        if(x>r.x && x<r.x+r.w && y>r.y && y<r.y+r.h){ golpearDuelo(); }
+        if(x>r.x && x<r.x+r.w && y>r.y && y<r.y+r.h){ golpearCab(x,y,r); }
       } else {
         const p=posDuelo();
         if(Math.abs(x-p.x)<p.w/2 && y>p.y-p.h && y<p.y+p.h){ golpearDuelo(); }
