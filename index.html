@@ -855,6 +855,8 @@ let relojesFlojos = false;
 let duelo = { activo:false, fase:'inactivo', t:0, hp:DUELO_CFG.golpes, pos:5, ruta:[], paso:0,
               puertas:0, disparoT:0, textoT:0 };
 let dueloCd = 0;
+let impactosNormales = 0;
+let primerDueloHecho = false;
 const SONIDOS_DISPARO_ESPECIALES = { 'pixelmaster.png':'disparoPixel' };
 const POOL = {};
 function reproducir(k, volumen=1, rate=1){
@@ -1507,6 +1509,14 @@ function actualizar(dt){
   skullCd = Math.max(0, skullCd - dt);
 
   dueloCd = Math.max(0, dueloCd - dt);
+  if(jugando && !duelo.activo){
+    if(!primerDueloHecho){
+      if(impactosNormales>=30){ primerDueloHecho=true; empezarDuelo(); }
+    } else if(dueloCd<=0){
+      empezarDuelo();
+    }
+  }
+
   if(crateCd>0){ crateCd-=dt; if(crateCd<=0 && crateStage>=4){ crateCd=0; crateStage=0; crateOpen=false; } }
   if(duelo.activo) actualizarDuelo(dt);
   if(dinamita){ const d=dinamita; const s=Math.max(cv.width/IW,cv.height/IH);
@@ -1773,11 +1783,6 @@ function disparar(x,y){
   }
   gatosSeguidos = 0;
 
-  const ag=agaveRect();
-  if(x>ag.x && x<ag.x+ag.w && y>ag.y && y<ag.y+ag.h){
-    if(dueloCd<=0) empezarDuelo();
-    return;
-  }
 
   for(let i=relojes.length-1;i>=0;i--){ const rj=relojes[i];
     if(Math.abs(x-rj.x)<18*s && Math.abs(y-rj.y)<18*s){
@@ -1821,6 +1826,7 @@ function disparar(x,y){
     const c = st.c;
     if(c && x>c.x-c.w/2 && x<c.x+c.w/2 && y>c.y-c.h/2 && y<c.y+c.h/2){
       racha++; const mult=multPorRacha(racha); const pts=50*mult; score+=pts;
+      impactosNormales++;
       reproducir('ouch'); if(c.snd) c.snd.pause();
       efectos.push({tipo:'flashEnemigo', x:c.x, y:c.y+c.h*0.2, vida:0.2});
       efectos.push({tipo:'acertado', x:c.x, y:c.y-c.h*0.55, vida:0.9,
@@ -1942,6 +1948,8 @@ function disparar(x,y){
       const headshot = y < r.y + r.h*0.35;
       racha++; const mult=multPorRacha(racha); const pts=(headshot?20:10)*mult; score+=pts;
       tiroteados[a.pers]++;
+      impactosNormales++;
+
       reproducir(SONIDOS_ESPECIALES[ARCHIVOS[a.pers]] || 'ouch');
       efectos.push({tipo:'acertado', x:a.fx, y:r.y-6, vida:0.8,
         texto:(headshot?'¡HEADSHOT! ':'')+'+'+pts+(mult>1?' (x'+mult+')':''), color: headshot?'#ff9a4a':undefined});
