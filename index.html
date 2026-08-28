@@ -1913,12 +1913,14 @@ function disparar(x,y){
     const r = posterRect(p);
     if(x>r.x && x<r.x+r.w && y>r.y && y<r.y+r.h){
       sonidoPapel();
-      const nf = Math.floor(Math.random()*personajes.length);
+      const pool=poolSeBusca();
+      const nf = Math.floor(Math.random()*pool.length);
       if(p.state=='hanging'){ p.state='revealed'; p.friend=nf;
         postersCayendo.push({x:r.x, y:r.y, rot:p.rot, vy:0, vrot:(Math.random()-0.5)*6}); }
       else { p.friend=nf; }
-      efectos.push({tipo:'texto', x:r.x+r.w/2, y:r.y-6, vida:0.9, texto:'👀 SE BUSCA: '+NOMBRES[nf], color:'#e8dcc0'});
+      efectos.push({tipo:'texto', x:r.x+r.w/2, y:r.y-6, vida:0.9, texto:'👀 SE BUSCA: '+pool[nf].nombre, color:'#e8dcc0'});
       return;
+
     }
   }
 
@@ -2015,6 +2017,13 @@ function drawPosterBase(s){
   octx.fillStyle='#c9b890';
   for(let k=0;k<6;k++) octx.fillRect(k*10*s,(70-(k%2)*3)*s,10*s,6*s);
 }
+function poolSeBusca(){
+  const arr=[];
+  for(let i=0;i<personajes.length;i++) arr.push({ img:personajes[i].sprite, nombre:NOMBRES[i] });
+  for(const inv of INVITADOS) arr.push({ img:inv.el, nombre:inv.nombre });
+  return arr;
+}
+
 function dibujarPosters(){
   const {s,ox,oy}=escalaEsc();
   for(const p of posters){
@@ -2031,13 +2040,14 @@ function dibujarPosters(){
     } else {
       octx.fillStyle='#3a2a18'; octx.font='bold '+9*s+'px Georgia, serif';
       octx.fillText('SE BUSCA', 28*s, 12*s);
-      const sp = personajes[p.friend] && personajes[p.friend].sprite;
-      if(sp){ const bw=40*s, bh=40*s, ratio=sp.width/sp.height;
+      const entrada=poolSeBusca()[p.friend];
+      const sp = entrada && entrada.img;
+      if(sp && sp.width>0){ const bw=40*s, bh=40*s, ratio=sp.width/sp.height;
         let dw=bw, dh=bw/ratio; if(dh>bh){ dh=bh; dw=bh*ratio; }
         octx.drawImage(sp, 28*s-dw/2, 16*s+(bh-dh)/2, dw, dh); }
       else { octx.fillStyle='#6a563a'; octx.beginPath(); octx.arc(28*s,36*s,14*s,0,7); octx.fill(); }
       octx.fillStyle='#3a2a18'; octx.font='bold '+7*s+'px Georgia, serif';
-      octx.fillText(NOMBRES[p.friend].toUpperCase(), 28*s, 64*s);
+      octx.fillText((entrada?entrada.nombre:'???').toUpperCase(), 28*s, 64*s);
     }
     octx.restore();
   }
