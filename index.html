@@ -821,7 +821,9 @@ const RUTAS_SONIDO = {
   muerte:'muerte.ogg',
   ovejita:'ovejita.ogg',
   yepa:'yepa.ogg',
-  diligencia:'diligencia.ogg'
+  diligencia:'diligencia.ogg',
+  pianoCaida:'piano-caida.ogg',
+  pianoCrash:'piano-crash.ogg'
 };
 const SONIDOS_ESPECIALES = { 'lajefa.png':'lajefa', 'perickko.png':'perickko', 'chocobo.png':'chocobo' };
 
@@ -1571,7 +1573,7 @@ function actualizar(dt){
     piano.vy+=1500*s*dt; piano.y+=piano.vy*dt; piano.rot+=piano.vrot*dt;
     const {oy}=escalaEsc(); const gy=oy+700*s;
     if(piano.y>=gy){
-      score+=15; sonidoPianoCaida(); shake=1.5; hitstop=0.08;
+      score+=15; reproducir('pianoCrash'); shake=1.5; hitstop=0.08;
       efectos.push({tipo:'texto', x:piano.x, y:gy-60, vida:1.1, texto:'🎹 ¡PLAF! +15', color:'#fff'});
       for(let i=0;i<26;i++){ const a=Math.random()*Math.PI*2, sp=(60+Math.random()*240)*s;
         pianoParts.push({x:piano.x, y:gy-10, vx:Math.cos(a)*sp, vy:-Math.abs(Math.sin(a))*sp-40,
@@ -1747,6 +1749,7 @@ function soltarPiano(){
   const ag=agaveRect();
   piano={ x:ag.x+ag.w/2, y:-120, vy:0, rot:0, vrot:(Math.random()-0.5)*2 };
   pianoCd=180;
+  reproducir('pianoCaida');
 }
 
 function disparar(x,y){
