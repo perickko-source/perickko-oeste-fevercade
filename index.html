@@ -905,7 +905,7 @@ function reproducir(k, volumen=1, rate=1){
   const pool = POOL[k];
   let el = null;
   for(const a of pool){ if(a.ended || a.paused){ el = a; break; } }
-  if(!el){ el = pool.shift(); pool.push(el); }
+  if(!el){ if(pool.length < 8){ el = new Audio(ruta); pool.push(el); } else { el = pool.shift(); pool.push(el); } }
   try{ el.muted=false; el.currentTime=0; el.volume=volumen; el.playbackRate=rate; el.play().catch(()=>{}); }catch(e){}
   return el;
 }
