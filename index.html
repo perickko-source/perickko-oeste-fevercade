@@ -800,6 +800,7 @@ let audioCtx = null;
 function initAudio(){
   if(!audioCtx){ try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
   if(audioCtx && audioCtx.state==='suspended') audioCtx.resume().catch(()=>{});
+  desbloquearSonidos();
 }
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) initAudio(); });
 document.addEventListener('pointerdown', initAudio);
@@ -856,9 +857,43 @@ let duelo = { activo:false, fase:'inactivo', t:0, hp:DUELO_CFG.golpes, pos:5, ru
               puertas:0, disparoT:0, textoT:0 };
 let dueloCd = 0;
 let impactosNormales = 0;
+let piano=null, pianoCd=0, pianoParts=[];
+let audioCtxPiano=null;
+function sonidoPianoCaida(){
+  try{
+    audioCtxPiano = audioCtxPiano || new (window.AudioContext||window.webkitAudioContext)();
+    const ctx=audioCtxPiano, t=ctx.currentTime;
+    [110,116,155,220,233,311,440,466].forEach((f,i)=>{
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.type='triangle'; o.frequency.value=f;
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(0.12,t+0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+0.9+i*0.03);
+      o.connect(g).connect(ctx.destination); o.start(t); o.stop(t+1.0);
+    });
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.type='sine'; o.frequency.setValueAtTime(120,t); o.frequency.exponentialRampToValueAtTime(40,t+0.25);
+    g.gain.setValueAtTime(0.4,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.3);
+    o.connect(g).connect(ctx.destination); o.start(t); o.stop(t+0.35);
+  }catch(e){}
+}
+
 let primerDueloHecho = false;
 const SONIDOS_DISPARO_ESPECIALES = { 'pixelmaster.png':'disparoPixel' };
 const POOL = {};
+for(const k in RUTAS_SONIDO){
+  POOL[k]=[new Audio(RUTAS_SONIDO[k]), new Audio(RUTAS_SONIDO[k])];
+  POOL[k].forEach(a=>a.preload='auto');
+}
+let sonidosDesbloqueados=false;
+function desbloquearSonidos(){
+  if(sonidosDesbloqueados) return; sonidosDesbloqueados=true;
+  for(const k in POOL){ for(const el of POOL[k]){
+    el.muted=true; const p=el.play();
+    if(p&&p.then) p.then(()=>{ el.pause(); el.currentTime=0; el.muted=false; }).catch(()=>{ el.muted=false; });
+    else el.muted=false;
+  } }
+}
 function reproducir(k, volumen=1, rate=1){
   const ruta = RUTAS_SONIDO[k];
   if(!ruta) return null;
@@ -866,7 +901,7 @@ function reproducir(k, volumen=1, rate=1){
   const pool = POOL[k];
   let el = null;
   for(const a of pool){ if(a.ended || a.paused){ el = a; break; } }
-  if(!el){ if(pool.length < 8){ el = new Audio(ruta); pool.push(el); } else { el = pool.shift(); pool.push(el); } }
+  if(!el){ el = pool.shift(); pool.push(el); }
   try{ el.currentTime=0; el.volume=volumen; el.playbackRate=rate; el.play().catch(()=>{}); }catch(e){}
   return el;
 }
@@ -1526,6 +1561,27 @@ function actualizar(dt){
     ef.x+=ef.vx*dt; ef.y+=ef.vy*dt; ef.vida-=dt;
     if(ef.vida<=0 || ef.x<-50 || ef.y>cj.height+50) estrellaFugaz=null; }
 
+  pianoCd=Math.max(0,pianoCd-dt);
+  if(piano){
+    const s=Math.max(cv.width/IW,cv.height/IH);
+    piano.vy+=1500*s*dt; piano.y+=piano.vy*dt; piano.rot+=piano.vrot*dt;
+    const {oy}=escalaEsc(); const gy=oy+700*s;
+    if(piano.y>=gy){
+      score+=15; sonidoPianoCaida(); shake=1.5; hitstop=0.08;
+      efectos.push({tipo:'texto', x:piano.x, y:gy-60, vida:1.1, texto:'🎹 ¡PLAF! +15', color:'#fff'});
+      for(let i=0;i<26;i++){ const a=Math.random()*Math.PI*2, sp=(60+Math.random()*240)*s;
+        pianoParts.push({x:piano.x, y:gy-10, vx:Math.cos(a)*sp, vy:-Math.abs(Math.sin(a))*sp-40,
+          rot:Math.random()*6, vrot:(Math.random()-0.5)*14, vida:0.7+Math.random()*0.6,
+          tipo: i%3===0?'tecla':(i%3===1?'teclaNegra':'madera'),
+          w:(i%3===0?10: i%3===1?6:14)*s, h:(i%3===0?16: i%3===1?10:8)*s });
+      }
+      piano=null;
+    }
+  }
+  for(let i=pianoParts.length-1;i>=0;i--){ const p=pianoParts[i];
+    p.vy+=600*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.rot+=p.vrot*dt; p.vida-=dt;
+    if(p.vida<=0) pianoParts.splice(i,1); }
+
   if(cabeza.active){
     cabeza.t += dt;
     const T=cabeza.t;
@@ -1683,6 +1739,11 @@ function actualizar(dt){
   for(let i=agujeros.length-1;i>=0;i--){ agujeros[i].vida-=dt; if(agujeros[i].vida<=0) agujeros.splice(i,1); }
   for(let i=efectos.length-1;i>=0;i--){ efectos[i].vida-=dt; if(efectos[i].vida<=0) efectos.splice(i,1); }
 }
+function soltarPiano(){
+  const ag=agaveRect();
+  piano={ x:ag.x+ag.w/2, y:-120, vy:0, rot:0, vrot:(Math.random()-0.5)*2 };
+  pianoCd=180;
+}
 
 function disparar(x,y){
   if(!jugando) return;
@@ -1783,6 +1844,11 @@ function disparar(x,y){
   }
   gatosSeguidos = 0;
 
+  const ag=agaveRect();
+  if(x>ag.x && x<ag.x+ag.w && y>ag.y && y<ag.y+ag.h){
+    if(pianoCd<=0 && !piano) soltarPiano();
+    return;
+  }
 
   for(let i=relojes.length-1;i>=0;i--){ const rj=relojes[i];
     if(Math.abs(x-rj.x)<18*s && Math.abs(y-rj.y)<18*s){
@@ -1879,8 +1945,8 @@ function disparar(x,y){
     for(let i=cacas.length-1;i>=0;i--){ const c=cacas[i];
       const R=Math.max(10*s,c.r+8*s);
       if(Math.abs(x-c.x)<R && Math.abs(y-c.y)<R){
-        tiempo+=1; sonidoTick();
-        efectos.push({tipo:'texto', x:c.x, y:c.y-12, vida:0.8, texto:'💩 ⏱ +1s', color:'#c8a06a'});
+        tiempo+=2; sonidoTick();
+        efectos.push({tipo:'texto', x:c.x, y:c.y-12, vida:0.8, texto:'💩 ⏱ +2s', color:'#c8a06a'});
         cacas.splice(i,1);
         return;
       }
@@ -2363,6 +2429,29 @@ function dibujarMira(){
   O.moveTo(x,y-r-8); O.lineTo(x,y-r+4); O.moveTo(x,y+r+8); O.lineTo(x,y+r-4); O.stroke();
 }
 
+function dibujarPiano(){
+  if(!piano) return;
+  const s=Math.max(cv.width/IW,cv.height/IH);
+  octx.save(); octx.translate(piano.x,piano.y); octx.rotate(piano.rot);
+  const W=140*s, H=105*s;
+  octx.fillStyle='#1a1208'; octx.fillRect(-W/2,-H, W, H);
+  octx.fillStyle='#2a1c10'; octx.fillRect(-W/2,-H, W, 12*s);
+  octx.fillStyle='#f5f0e0'; octx.fillRect(-W/2+9*s, -22*s, W-18*s, 18*s);
+  octx.fillStyle='#111'; for(let k=0;k<8;k++) octx.fillRect(-W/2+15*s+k*15*s, -22*s, 8*s, 10*s);
+  octx.restore();
+}
+function dibujarPianoParts(){
+  for(const p of pianoParts){
+    octx.save(); octx.globalAlpha=Math.max(0,Math.min(1,p.vida*2)); octx.translate(p.x,p.y); octx.rotate(p.rot);
+    if(p.tipo==='tecla') octx.fillStyle='#f5f0e0';
+    else if(p.tipo==='teclaNegra') octx.fillStyle='#111';
+    else octx.fillStyle='#3a2412';
+    octx.fillRect(-p.w/2,-p.h/2,p.w,p.h);
+    octx.restore();
+  }
+  octx.globalAlpha=1;
+}
+
 function bucle(t){
   const dt = Math.min((t - tPrevio)/1000, 0.05); tPrevio = t;
   actualizar(dt);
@@ -2388,6 +2477,8 @@ function bucle(t){
   dibujarCabeza();
   dibujarFuegoParts();
   dibujarPinchos();
+  dibujarPiano();
+  dibujarPianoParts();
   octx.restore();
 
   fctx.clearRect(0,0,fx.width,fx.height);
