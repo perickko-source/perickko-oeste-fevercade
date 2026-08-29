@@ -889,9 +889,13 @@ let sonidosDesbloqueados=false;
 function desbloquearSonidos(){
   if(sonidosDesbloqueados) return; sonidosDesbloqueados=true;
   for(const k in POOL){ for(const el of POOL[k]){
-    el.muted=true; const p=el.play();
-    if(p&&p.then) p.then(()=>{ el.pause(); el.currentTime=0; el.muted=false; }).catch(()=>{ el.muted=false; });
-    else el.muted=false;
+    try{
+      el.volume=0;
+      const p=el.play();
+      if(p&&p.then) p.then(()=>{ try{ el.pause(); el.currentTime=0; el.volume=1; el.muted=false; }catch(e){} })
+        .catch(()=>{ try{ el.muted=false; el.volume=1; }catch(e){} });
+      else { el.volume=1; }
+    }catch(e){}
   } }
 }
 function reproducir(k, volumen=1, rate=1){
@@ -902,7 +906,7 @@ function reproducir(k, volumen=1, rate=1){
   let el = null;
   for(const a of pool){ if(a.ended || a.paused){ el = a; break; } }
   if(!el){ el = pool.shift(); pool.push(el); }
-  try{ el.currentTime=0; el.volume=volumen; el.playbackRate=rate; el.play().catch(()=>{}); }catch(e){}
+  try{ el.muted=false; el.currentTime=0; el.volume=volumen; el.playbackRate=rate; el.play().catch(()=>{}); }catch(e){}
   return el;
 }
 function sonidoSeco(f){
