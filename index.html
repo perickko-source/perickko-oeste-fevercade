@@ -832,15 +832,22 @@ const INVITADOS = [
   { img:'koala.png',  nombre:'El Koala', puntos:100, tiempo:10, golpes:15 },
   { img:'pepino.png', nombre:'Pepino',   puntos:200, tiempo:10, golpes:15 },
   { img:'nandors.png',nombre:'Nandors',  puntos:300, tiempo:10, golpes:20, caballo:'nandors-a-caballo.webp', rafaga:4 },
-  { img:'javimasme.png',nombre:'Javi Masme', puntos:400, tiempo:10, golpes:20, caballo:'masme-en-diligencia.webp', rafaga:2, disparosCab:4, cabH:300, cabGolpes:5 }
+  { img:'javimasme.png',nombre:'Javi Masme', puntos:400, tiempo:10, golpes:20, caballo:'masme-en-diligencia.webp', rafaga:2, disparosCab:4, cabH:300, cabGolpes:5 },
+  { img:'valefor.png', nombre:'Valefor', puntos:500, tiempo:10, golpes:25, rafaga:3,
+    corre:'valefor-corre.webp', disparosCorre:6, correH:220 }
 ];
 const DUELO_CFG = { golpes:15, espera:6, cooldown:120, puntosGolpe:15 };
 for(const inv of INVITADOS){ inv.el=new Image(); inv.el.src=inv.img;
-  if(inv.caballo){ inv.cabEl=new Image(); inv.cabEl.src=inv.caballo; } }
+  if(inv.caballo){ inv.cabEl=new Image(); inv.cabEl.src=inv.caballo; }
+  if(inv.corre){ inv.correEl=new Image(); inv.correEl.src=inv.corre; } }
 const nandorsCabEl=document.createElement('img');
 nandorsCabEl.alt=''; nandorsCabEl.className='runner'; nandorsCabEl.style.display='none';
 nandorsCabEl.src='nandors-a-caballo.webp';
 document.body.appendChild(nandorsCabEl);
+const valeforCorreEl=document.createElement('img');
+valeforCorreEl.alt=''; valeforCorreEl.className='runner'; valeforCorreEl.style.display='none';
+valeforCorreEl.src='valefor-corre.webp';
+document.body.appendChild(valeforCorreEl);
 function pintarCaballoDuelo(){
   if(!duelo.cab){ nandorsCabEl.style.display='none'; return; }
   const r=rectCaballoDuelo();
@@ -1151,7 +1158,9 @@ function rutaDuelo(){
   }
 
   // A partir de la 7ª: si el invitado tiene caballo, entra en la ruleta
-  const todas=inv.caballo ? [0,1,2,3,4,5,6] : [0,1,2,3,4,5];
+  let todas=[0,1,2,3,4,5];
+  if(inv.caballo) todas.push(6);
+  if(inv.corre) todas.push(7,8);
 
   while(ruta.length<total){
     let bolsa=barajar(todas.slice());
@@ -1183,6 +1192,13 @@ function iniciarCaballoDuelo(){
   duelo.cab={ dir, x:x0, vel, snd:reproducir(esDili?'diligencia':'trote'),
     shotsLeft:disparos, tShot:dur*0.08, int:dur/disparos, hp:inv.cabGolpes||1 };
 }
+function iniciarCorreDuelo(){
+  const {s}=escalaEsc();
+  const dir=Math.random()<0.5?1:-1;
+  const vel=(380+Math.random()*120)*s;
+  const x0= dir>0? -200*s : cj.width+200*s;
+  duelo.cor={ dir, x:x0, vel, burst:0, burstT:0, reloading:false, reloadT:0 };
+}
 
 function rectCaballoDuelo(){
   const {s,ox,oy}=escalaEsc();
@@ -1192,21 +1208,45 @@ function rectCaballoDuelo(){
   const x=duelo.cab?duelo.cab.x:cj.width/2;
   return { x:x-W/2, y:gy-H, w:W, h:H };
 }
+function rectCorreDuelo(){
+  const {s,ox,oy}=escalaEsc();
+  const inv=INVITADOS[duelo.inv];
+  const ratio=(inv.correEl&&inv.correEl.naturalWidth>0)? inv.correEl.naturalWidth/inv.correEl.naturalHeight : 0.6;
+  const H=(inv.correH||220)*s, W=H*ratio, gy=oy+700*s;
+  const x=duelo.cor?duelo.cor.x:cj.width/2;
+  return { x:x-W/2, y:gy-H, w:W, h:H };
+}
+function rectHotelDuelo(){
+  const {s,ox,oy}=escalaEsc();
+  return { x:ox+56*s, y:oy+200*s, w:90*s, h:170*s };
+}
+function pintarCorreDuelo(){
+  if(!(duelo.activo && duelo.fase==='enCurso' && duelo.pos===7 && duelo.cor)){ valeforCorreEl.style.display='none'; return; }
+  const r=rectCorreDuelo();
+  valeforCorreEl.style.display='block';
+  valeforCorreEl.style.width=r.w+'px'; valeforCorreEl.style.height=r.h+'px';
+  valeforCorreEl.style.left=r.x+'px'; valeforCorreEl.style.top=r.y+'px';
+  valeforCorreEl.style.transform = duelo.cor.dir<0 ? 'scaleX(-1)' : 'none';
+}
 
 function posDuelo(){
+  if(duelo.pos===8){ const {s,ox,oy}=escalaEsc();
+    const x=ox+62*s, y=oy+202*s, w=80*s, h=170*s;
+    return { x:x+w/2, y:y+h/2, w, h, fx:x+w/2, fy:y+h*0.4 }; }
   const r=rectSpawn(duelo.pos), ref=rectSpawn(5);
   const h=ref.h, w=h*0.62;
   const esPuerta=duelo.pos===5;
   const fy= esPuerta ? (r.y + r.h - h/2) : (r.y + r.h*0.06 + h/2);
   return { x:r.x+r.w/2, y:fy, w, h, fx:r.x+r.w/2, fy:r.y+r.h*0.45 };
 }
+
 function empezarDuelo(){
   duelo.inv = dueloNum % INVITADOS.length;
   duelo.daTiempo = dueloNum < INVITADOS.length;
   dueloNum++;
   dueloImg = INVITADOS[duelo.inv].el;
   duelo.activo=true; duelo.fase='tension'; duelo.t=0; duelo.hp=INVITADOS[duelo.inv].golpes || DUELO_CFG.golpes;
-  duelo.cab=null;
+  duelo.cab=null; duelo.cor=null;
   duelo.paso=0; duelo.puertas=0; duelo.disparoT=0; duelo.pos=5;
   duelo.paso=0; duelo.puertas=0; duelo.disparoT=0; duelo.pos=5;
   duelo.ndrShots=0; duelo.ndrT=0; duelo.ndrApar=-1;
@@ -1225,6 +1265,7 @@ function dueloDispara(){
   const {gx,gy}=datosPistola();
   let fx,fy;
   if(duelo.pos===6 && duelo.cab){ const r=rectCaballoDuelo(); fx=r.x+r.w/2; fy=r.y+r.h*0.4; }
+  else if(duelo.pos===7 && duelo.cor){ const r=rectCorreDuelo(); fx=r.x+r.w/2; fy=r.y+r.h*0.4; }
   else { const p=posDuelo(); fx=p.fx; fy=p.fy; }
   efectos.push({tipo:'flashEnemigo', x:fx, y:fy, vida:0.15});
   efectos.push({tipo:'balaEnemiga', x0:fx, y0:fy, x1:gx, y1:gy-30, vida:0.12, total:0.12});
@@ -1239,7 +1280,9 @@ function moverDuelo(){
   duelo.paso++;
   if(duelo.paso>=duelo.ruta.length){
     const inv=INVITADOS[duelo.inv];
-    const todas=inv.caballo?[0,1,2,3,4,5,6]:[0,1,2,3,4,5];
+    let todas=[0,1,2,3,4,5];
+    if(inv.caballo) todas.push(6);
+    if(inv.corre) todas.push(7,8);
     const opts=todas.filter(p=>p!==duelo.pos);
     duelo.ruta.push(opts[Math.floor(Math.random()*opts.length)]);
   }
@@ -1247,6 +1290,7 @@ function moverDuelo(){
   duelo.aparT=0;
   duelo.disparoT=1.0+Math.random()*0.8;
   if(duelo.pos===6) iniciarCaballoDuelo(); else duelo.cab=null;
+  if(duelo.pos===7) iniciarCorreDuelo(); else duelo.cor=null;
 }
 
 function golpearCab(x,y,r){
@@ -1273,6 +1317,25 @@ function golpearDuelo(){
 efectos.push({tipo:'acertado', x:p.x, y:p.y-40, vida:0.8, texto:'+'+DUELO_CFG.puntosGolpe, color:'#8aff8a'});
   if(duelo.hp<=0) matarDuelo(); else moverDuelo();
 }
+function golpearCorre(x,y,r){
+  const cabeza = y < r.y + r.h*0.3;
+  const dmg = cabeza?2:1;
+  const pts = DUELO_CFG.puntosGolpe + (cabeza?10:0);
+  duelo.hp-=dmg; score+=pts;
+  reproducir('ouch');
+  efectos.push({tipo:'acertado', x, y:y-20, vida:0.8, texto:(cabeza?'¡HEADSHOT! +':'+')+pts, color: cabeza?'#ffe066':'#8aff8a'});
+  if(duelo.hp<=0) matarDuelo();
+}
+function golpearHotel(x,y,p){
+  const cabeza = y < p.y - p.h*0.2;
+  const dmg = cabeza?2:1;
+  const pts = DUELO_CFG.puntosGolpe + (cabeza?10:0);
+  duelo.hp-=dmg; score+=pts;
+  reproducir('ouch');
+  efectos.push({tipo:'acertado', x:p.x, y:p.y-40, vida:0.8, texto:(cabeza?'¡HEADSHOT! +':'+')+pts, color: cabeza?'#ffe066':'#8aff8a'});
+  if(duelo.hp<=0) matarDuelo(); else moverDuelo();
+}
+
 function valorReloj(){ return relojesFlojos ? 2 : 4; }
 function matarDuelo(){
   if(duelo.cab&&duelo.cab.snd) duelo.cab.snd.pause();
@@ -1314,9 +1377,25 @@ function actualizarDuelo(dt){
       }
       const fuera = duelo.cab.dir>0 ? duelo.cab.x>cj.width+300 : duelo.cab.x<-300;
       if(fuera){ moverDuelo(); }
+    } else if(duelo.pos===7 && duelo.cor){
+      const c=duelo.cor;
+      c.x += c.dir*c.vel*dt;
+      if(c.reloading){
+        c.reloadT-=dt;
+        if(c.reloadT<=0){ c.reloading=false; c.burst=0; }
+      } else {
+        c.burstT-=dt;
+        if(c.burstT<=0){
+          if(c.burst<6){ dueloDispara(); c.burst++; c.burstT=0.18; }
+          else { c.reloading=true; c.reloadT=0.8; reproducir('recarga'); }
+        }
+      }
+      const fuera = c.dir>0 ? c.x>cj.width+300 : c.x<-300;
+      if(fuera){ moverDuelo(); }
+    } else if(duelo.pos===8){
+      duelo.disparoT-=dt;
+      if(duelo.disparoT<=0){ dueloDispara(); duelo.disparoT=0.5+Math.random()*0.4; }
     } else {
-
-
       const inv=INVITADOS[duelo.inv];
       if(inv.rafaga){
         if(duelo.ndrShots<=0){ duelo.ndrShots=inv.rafaga; duelo.ndrT=0.4; }
@@ -1334,12 +1413,12 @@ function actualizarDuelo(dt){
 }
 function dibujarDuelo(g){
   pintarCaballoDuelo();
+  pintarCorreDuelo();
   if(!duelo.activo) return;
   if(duelo.fase==='tension' || duelo.fase==='abriendo'){
     dibujarCartelDuelo(g, duelo.fase==='tension' ? 1 : (1-duelo.puertas));
   }
-  if(duelo.fase==='enCurso' && duelo.pos!==6 && dueloImg.complete && dueloImg.naturalWidth){
-
+  if(duelo.fase==='enCurso' && duelo.pos<=5 && dueloImg.complete && dueloImg.naturalWidth){
 
     const wr=rectSpawn(duelo.pos);
     const e=easeOut(Math.min(1,duelo.aparT||0));
@@ -1359,6 +1438,21 @@ function dibujarDuelo(g){
       g.drawImage(dueloImg,-dw/2,-dh/2,dw,dh); g.restore();
     }
 
+  }
+  if(duelo.fase==='enCurso' && duelo.pos===8 && dueloImg.complete && dueloImg.naturalWidth){
+    const r=rectHotelDuelo();
+    const e=easeOut(Math.min(1,duelo.aparT||0));
+    const {s,ox,oy}=escalaEsc();
+    const H=r.h*1.0, W=H*0.62;
+    const signRight=ox+62*s;
+    const pivotX=ox+50*s, pivotY=oy+372*s;
+    g.save();
+    g.beginPath(); g.rect(signRight,0,cj.width-signRight,cj.height); g.clip();
+    g.translate(pivotX,pivotY); g.rotate(0.30*e);
+    g.scale(-1,1);
+    g.globalAlpha=e;
+    g.drawImage(dueloImg, -W*0.45, -H, W, H);
+    g.restore(); g.globalAlpha=1;
   }
   if(duelo.fase==='muerto' && duelo.t > 1.0){
     const inv=INVITADOS[duelo.inv];
@@ -1768,6 +1862,12 @@ function disparar(x,y){
       if(duelo.pos===6 && duelo.cab){
         const r=rectCaballoDuelo();
         if(x>r.x && x<r.x+r.w && y>r.y && y<r.y+r.h){ golpearCab(x,y,r); }
+      } else if(duelo.pos===7 && duelo.cor){
+        const r=rectCorreDuelo();
+        if(x>r.x && x<r.x+r.w && y>r.y && y<r.y+r.h){ golpearCorre(x,y,r); }
+      } else if(duelo.pos===8){
+        const p=posDuelo();
+        if(x>p.x-p.w/2 && x<p.x+p.w/2 && y>p.y-p.h/2 && y<p.y+p.h/2){ golpearHotel(x,y,p); }
       } else {
         const p=posDuelo();
         if(Math.abs(x-p.x)<p.w/2 && y>p.y-p.h && y<p.y+p.h){ golpearDuelo(); }
